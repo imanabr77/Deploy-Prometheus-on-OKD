@@ -1,0 +1,42 @@
+stages:
+  - prometheus_check
+  - deploy
+
+
+prometheus_check:
+  image: alpine:3.12
+  stage: prometheus_check
+  except:
+    - master
+  script:
+    - mkdir -p /usr/local/sbin/
+    - wget Address-promtool-binary -P /usr/local/sbin
+    - chmod +x /usr/local/sbin/promtool
+    - /usr/local/sbin/promtool check config prometheus.yml
+
+.deploy-cloud: &deploy_cloud
+  image: openshift/origin-cli:v4.0.0
+  stage: deploy
+  only:
+    - master
+  before_script:
+    - oc version  
+    - oc login Addres-your-cluster-kube and okd  --token=${PRODUCTION_TOKEN}
+    - oc project ${OKD_PROJECT}
+    - oc create configmap prometheus-conf --from-file=prometheus.yml -o yaml --dry-run=clinet | oc replace -f -
+    - oc apply -f statefulset.yml
+  script:
+    - sleep 15
+    - curl -XPOST Your-address and Route/-/reload
+  environment:
+    name: $/latest
+
+deploy-cloud-teh2:
+
+  variables:
+    OKD_PROJECT: prometheus
+    REGION: "Your-region"
+    SERVICE_NAME: "prometheus"
+    PRODUCTION_TOKEN: "$your token"
+  <<: *deploy_cloud
+
