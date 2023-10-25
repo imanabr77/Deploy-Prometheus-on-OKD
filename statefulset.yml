@@ -1,0 +1,80 @@
+---
+kind: "StatefulSet"
+apiVersion: "apps/v1"
+metadata:
+  name: prometheus
+  namespace: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  serviceName: prometheus
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: prometheus
+        image: prometheus:2.37.9
+        args:
+          - --config.file=/etc/prometheus/prometheus.yml
+          - --storage.tsdb.path=/prometheus
+          - --storage.tsdb.retention.size=88GB
+          - --storage.tsdb.max-block-duration=2h
+          - --storage.tsdb.min-block-duration=2h
+          - --web.enable-admin-api
+          - --web.enable-lifecycle
+          - --web.external-url=prometheus.io
+
+        ports:
+          - containerPort: 9090
+            name: http
+            protocol: TCP
+
+        volumeMounts:
+        - name: data
+          mountPath: /prometheus
+        - name: conf
+          mountPath: /etc/prometheus/
+
+
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: http
+          initialDelaySeconds: 5
+          timeoutSeconds: 60
+
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http
+          initialDelaySeconds: 5
+          timeoutSeconds: 60      
+        resources:
+          limits:
+            memory: 2Gi
+            cpu: 1
+          requests:
+            memory: 1Gi
+            cpu: 200m
+      volumes:
+        - name: conf
+          configMap:
+            name: prometheus-conf
+
+
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "block-storage-standard"
+      resources:
+        requests:
+          storage: 20Gi
+
